@@ -1,0 +1,16 @@
+{
+  "name": "linear-regression-ts",
+  "description": "Predict future values with a simple but powerful linear regression algorithm, with JavaScript and TypeScript!",
+  "author": "Olli Glorioso",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "ISC",
+  "homepage": "https://github.com/olliglorioso/linear-regression-ts#readme",
+  "scripts": {
+    "dev": "ts-node index.ts",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^4.7.2"
+  }
+}
