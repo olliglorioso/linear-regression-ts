@@ -6,7 +6,11 @@
       "moduleResolution": "node",
       "declaration": true,
       "sourceMap": true,
-      "outDir": "dist"
+      "outDir": "dist",
+      "rootDir": "src",
     },
+    "exclude": [
+      "src/tests"
+    ],
     "lib": ["es2015"]
 }

@@ -7,10 +7,15 @@
   "license": "ISC",
   "homepage": "https://github.com/olliglorioso/linear-regression-ts#readme",
   "scripts": {
-    "dev": "ts-node index.ts",
-    "build": "tsc"
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "test": "jest"
   },
   "devDependencies": {
+    "@types/jest": "^27.5.1",
+    "jest": "^28.1.0",
+    "ts-jest": "^28.0.3",
+    "ts-node": "^10.8.0",
     "typescript": "^4.7.2"
   }
 }
