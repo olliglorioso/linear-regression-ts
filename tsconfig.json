@@ -10,7 +10,9 @@
       "rootDir": "src",
     },
     "exclude": [
-      "src/tests"
+      "src/tests",
+      "./jest.config.js",
+      "dist"
     ],
     "lib": ["es2015"]
 }
