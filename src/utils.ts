@@ -22,6 +22,16 @@ export const checkValues = (inputs: any, labels: any): boolean => {
     return valuesTrue && labelsTrue
 }
 
+export const checkMultiValues = (multiInputs: any, labels: any): boolean => {
+    if (!multiInputs || multiInputs.length > 0) return true
+    const firstLength = multiInputs[0].length
+    for (const list of multiInputs) {
+        if (!isNumList(list)) throw new Error("Every element in sublists must be numbers.")
+        if (list.length !== firstLength) throw new Error("Every sublist must have the same length.")
+    }
+    return isNumList(labels)
+}
+
 export const splitToChunks = (blockSize: number, list: number[]): TrainAndTest => {
     if (blockSize <= 0 || blockSize >= 100) throw new Error("The list must be split into two chunks larger than zero elements.")
     const chunkSize = ~~(blockSize / 100 * list.length)

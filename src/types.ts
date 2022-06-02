@@ -4,6 +4,12 @@ export interface SimpleModel {
     error: number
 }
 
+export interface ClassProps {
+    inputs?: number[],
+    labels: number[],
+    multiInputs?: number[][]
+}
+
 export interface OptimizedValues {
     iteration: number,
     learningRate: number

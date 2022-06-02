@@ -1,5 +1,5 @@
-import { OptimizedValues, Scores, SimpleModel, TrainAndTest, TrainAndTestForPrediction } from "./types"
-import { shuffleList, checkValues, splitToChunks } from "./utils"
+import { ClassProps, OptimizedValues, Scores, SimpleModel, TrainAndTest, TrainAndTestForPrediction } from "./types"
+import { shuffleList, checkValues, splitToChunks, checkMultiValues } from "./utils"
 
 
 /**
@@ -21,28 +21,48 @@ export class LinearRegression {
     labels: number[]
     intercept: number
     slope: number
+    multiIntercept: number
+    multiSlopes: number[]
+    multiInputs: number[][]
 
-    constructor(inputs: number[], labels: number[]) {
-        checkValues(inputs, labels)
-        this.inputs = inputs;
-        this.labels = labels;
-        this.intercept = Math.random() * 2
-        this.slope = Math.random() * 2
+    constructor({ inputs, labels }: ClassProps) {
+        if (inputs) {
+            checkValues(inputs, labels)
+            this.intercept = 0
+            this.slope = 0
+            this.inputs = inputs;
+        }
+
+        this.labels = labels
     }
 
-    #coefficientErrors(slope: number, intercept: number) {
+    #updateWeights(slope: number, intercept: number) {
         const { inputs, labels } = this
         const n = inputs.length
-        let errorIntercept = 0
-        let errorSlope = 0
-        for (const b in inputs) { // Calculate the gradient of cost function with respect to slope & intercept.
-            const singleError = labels[b] - (slope * inputs[b] + intercept)
-            const pdIntercept = (-2) / n * singleError
-            const pdSlope =  (-2) / n * (inputs[b]) * singleError
-            errorIntercept = errorIntercept + pdIntercept
-            errorSlope = errorSlope + pdSlope
+        let deltaIntercept = 0
+        let deltaSlope = 0
+        for (let i = 0; i < n; i++) {
+            const x = inputs[i]
+            const real = labels[i]
+            const predicted = slope * x + intercept
+            const err = predicted - real
+            deltaIntercept += err
+            deltaSlope += err * x
         }
-        return { errorIntercept, errorSlope }
+        return { deltaIntercept: (2 / n) * deltaIntercept, deltaSlope: (2 / n) * deltaSlope }
+    }
+
+    #meanSquaredError(slope: number, intercept: number) {
+        const { inputs, labels } = this
+        const n = labels.length
+
+        const mse = (1 / n) * inputs.reduce((acc, curr, currIdx) => {
+            const predicted = slope * curr + intercept
+            const error = (predicted - labels[currIdx]) ** 2
+            return acc + error
+        })
+
+        return mse
     }
 
     /**
@@ -54,34 +74,28 @@ export class LinearRegression {
      * @description Give iterations and learning rate as a parameter, get the intercept and the slope back. Single-feature only.
      * @returns {Object} { intercept: number, slope: number, error: number }
      */
-    fitSimple(iterations: number = 1000, learningRate: number = 0.001, maxError?: number, setParams: boolean = true): SimpleModel {
+    fitSimple(iterations: number = 1000, learningRate: number = 0.001, maxError: number = 0, setParams: boolean = true): SimpleModel {
         let bestSlope = 0
         let bestIntercept = 0
-        let slope = 0
-        let intercept = 0
-        let minError = NaN
+        let minError = 0
+
+        let slope = this.slope
+        let intercept = this.intercept
         let errors = []
-        const { inputs, labels } = this
-
         for (let iteration = 1; iteration <= iterations; iteration++) {
-            let error = 0
+            const { deltaIntercept, deltaSlope } = this.#updateWeights(slope, intercept)
 
-            for (const a in inputs) {
-                const predicted = slope * inputs[a] + intercept 
-                const iterationError = (labels[a] - predicted) ** 2 // MSE
-                error += iterationError
-                const { errorIntercept, errorSlope } = this.#coefficientErrors(slope, intercept)
-                if (maxError && (errorIntercept > maxError || errorSlope > maxError)) continue
-                slope = slope - learningRate * errorSlope
-                intercept = intercept - learningRate * errorIntercept
-            }
-            if (iteration === 1 || error < minError) {
-                minError = error
-                bestSlope = slope
+            const iterationError = this.#meanSquaredError(slope, intercept) // Calculate the total MSE.
+            slope -= learningRate * deltaSlope
+            intercept -= learningRate * deltaIntercept
+            
+            if (iteration === 1 || iterationError < minError) {
+                minError = iterationError
                 bestIntercept = intercept
+                bestSlope = slope
             }
-            errors.push(error)
         }
+        
         if (setParams) this.intercept = bestIntercept, this.slope = bestSlope
         return { intercept: bestIntercept, slope: bestSlope, error: minError }
     }
@@ -95,7 +109,6 @@ export class LinearRegression {
      */
     scores(testValues: number[], testLabels: number[]): Scores {
         const predictedValues = this.simpleModelPredict(testValues)
-        const { intercept, slope } = this
         const n = testValues.length
         let mse = 0
         let mae = 0
@@ -115,13 +128,7 @@ export class LinearRegression {
         return { mse: (1 / n) * mse, mae: (1 / n) * mae }
     }
 
-    /**
-     * 
-     * @param iterations List of iterations to test.
-     * @param learningRates List of learning rates to test. 
-     * @description Automatically optimizes inputs for iterations and learning rates. Utilizes single-variable model.
-     * @returns {Object} { bestIteration: number, bestLearningRate: number }
-     */
+    
     optimizedValues(iterations: number[], learningRates: number[]): OptimizedValues  {
         let returned = { iteration: 0, learningRate: 0 }
         let bestError = NaN
