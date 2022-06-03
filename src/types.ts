@@ -1,41 +1,38 @@
-export interface SimpleModel {
-    intercept: number,
-    slope: number,
-    error: number
+export interface TrainAndTestParams {
+    inputs: number[][],
+    labels: number[],
+    ratio: number
 }
 
-export interface MultiModel {
-    intercept: number,
-    slopes: number[],
-    error: number
-}
-
-export interface WeightsSimple {
-    intercept: number,
-    slope: number
+export interface TrainAndTestReturn {
+    trainValues: number[][],
+    testValues: number[][],
+    trainLabels: number[],
+    testLabels: number[]
 }
 
 export interface ClassProps {
-    inputs: any
+    inputs: number[][]
     labels: number[],
 }
 
-export interface WeightsToUpdateMultiple {
-    deltaIntercept: number,
-    deltaSlopes: number[],
-}
-
-export interface WeightsMultiple {
+export interface Model {
     intercept: number,
     slopes: number[],
+    error: number
+}
+
+export interface Weights {
+    intercept: number,
+    slopes: number[]
 }
 
 export interface WeightsToUpdate {
     deltaIntercept: number,
-    deltaSlope: number
+    deltaSlopes: number[],
 }
 
-export interface FitSimpleParams {
+export interface FitParams {
     iterations?: number,
     learningRate?: number,
     optimizeStartingWeights?: boolean,
@@ -43,7 +40,7 @@ export interface FitSimpleParams {
 }
 
 export interface ScoreParams {
-    testValues: number[],
+    testValues: number[][],
     testLabels: number[]
 }
 
@@ -58,15 +55,13 @@ export interface OptimizedValues {
 }
 
 export interface TrainAndTest {
-    train: number[],
-    test: number[]
+    train: number[][],
+    test: number[][]
 }
 
-export interface TrainAndTestForPrediction {
-    trainValues: number[],
-    testValues: number[],
-    trainLabels: number[],
-    testLabels: number[]
+export interface TrainAndTestLabels {
+    train: number[],
+    test: number[]
 }
 
 export interface Scores {
@@ -75,8 +70,6 @@ export interface Scores {
 }
 
 export interface ParamLists {
-    shuffledValues: number[],
+    shuffledValues: number[][],
     shuffledLabels: number[]
 }
-
-export type Values = number[] | Generator

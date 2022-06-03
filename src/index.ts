@@ -1,18 +1,18 @@
-import { ClassProps, FitSimpleParams, MultiModel, OptimizedValues, OptimizedValuesParams, ScoreParams, Scores, SimpleModel, TrainAndTestForPrediction, WeightsMultiple, WeightsSimple, WeightsToUpdate, WeightsToUpdateMultiple } from "./types"
-import { shuffleList, splitToChunks, checkMultiValues, isSingleVariable } from "./utils"
-
+import { ClassProps, FitParams, Model, OptimizedValues, OptimizedValuesParams, ScoreParams, 
+    Scores, TrainAndTestReturn, TrainAndTestParams, Weights, WeightsToUpdate } from "./types"
+import { shuffleList, splitToChunks, isSingleVariable, splitToChunksLabels } from "./utils"
 
 /**
-* @param input The input values.
-* @param labels The output values.
-* @param ratio How many % of the data is for training.
+* @param TrainAndTestParams.input The input values.
+* @param TrainAndTestParams.labels The output values.
+* @param TrainAndTestParams.ratio How many % of the data is for training.
 * @description Returns randomly selected train- & test-inputs for use.
 * @returns trainValues, testValues, trainLabels, testLabels
 */
-export const trainAndTestSets = (inputs: number[], labels: number[], ratio: number): TrainAndTestForPrediction => {
+export const trainAndTestSets = ({ inputs, labels, ratio }: TrainAndTestParams): TrainAndTestReturn => {
    const { shuffledValues, shuffledLabels } = shuffleList(inputs, labels)
    const { train: trainValues, test: testValues } = splitToChunks(ratio, shuffledValues)
-   const { train: trainLabels, test: testLabels } = splitToChunks(ratio, shuffledLabels)
+   const { train: trainLabels, test: testLabels } = splitToChunksLabels(ratio, shuffledLabels)
    return { trainValues, testValues, trainLabels, testLabels }
 }
 
@@ -20,30 +20,16 @@ export class LinearRegression {
     inputs: any
     labels: number[]
     intercept: number
-    slope: number
+    slopes: number[]
 
     constructor({ inputs, labels }: ClassProps) {
-        const singleVar = isSingleVariable(inputs, labels)
         this.intercept = 0
-        this.slope = singleVar ? 0 : inputs[0].map(_a => 0)
+        this.slopes = inputs[0].map(_a => 0)
         this.inputs = inputs
         this.labels = labels
     }
 
-    #meanSquaredErrorSimple({ slope , intercept }: WeightsSimple): number {
-        const { inputs, labels } = this
-        const n = labels.length
-
-        const mse = (1 / n) * inputs.reduce((acc: number, curr: number, currIdx: number): number => {
-            const predicted = slope * curr + intercept
-            const error = (predicted - labels[currIdx]) ** 2
-            return acc + error
-        })
-
-        return mse
-    }
-
-    #calculateStartingWeightsSimple(): WeightsSimple {
+    #calculateStartingWeights(): Weights {
         const { inputs, labels } = this
         let xy = 1
         let x = 0
@@ -60,28 +46,12 @@ export class LinearRegression {
             xy += inputs[i] * labels[i]
         }
 
-        const slope = (n * xy - x * y) / (n * x2 - x ** 2)
+        const slopes = [(n * xy - x * y) / (n * x2 - x ** 2)]
         const intercept = (y * x2 - x * xy) / (n * x2 - x ** 2)
-        return { intercept, slope }
+        return { intercept, slopes }
     }
 
-    #updateWeights({ slope, intercept }: WeightsSimple): WeightsToUpdate {
-        const { inputs, labels } = this
-        const n = inputs.length
-        let deltaIntercept = 0
-        let deltaSlope = 0
-        for (let i = 0; i < n; i++) {
-            const x = inputs[i]
-            const real = labels[i]
-            const predicted = slope * x + intercept
-            const err = predicted - real
-            deltaIntercept += err
-            deltaSlope += err * x
-        }
-        return { deltaIntercept: (2 / n) * deltaIntercept, deltaSlope: (2 / n) * deltaSlope }
-    }
-
-    #meanSquaredErrorMultiple({ slopes, intercept }: WeightsMultiple): number {
+    #meanSquaredError({ slopes, intercept }: Weights): number {
         const { inputs, labels } = this
         const n = labels.length
         let error = 0
@@ -95,14 +65,13 @@ export class LinearRegression {
         return (1 / (2 * n)) * error
     }
 
-    #updateWeightsMultiple({ slopes, intercept }: WeightsMultiple): WeightsToUpdateMultiple {
+    #updateWeights({ slopes, intercept }: Weights): WeightsToUpdate {
         const { inputs, labels } = this
         const n = inputs.length
         let deltaIntercept = 0
         let deltaSlopes = inputs[0].map(a => 0)
         for (const a in inputs) {
             let totalPredicted = intercept
-
             for (const b in inputs[a]) {
                 const x = inputs[a][b]
                 const predicted = slopes[b] * x
@@ -112,35 +81,41 @@ export class LinearRegression {
                 const err = (totalPredicted - labels[a]) * inputs[a][c] * (2 / n)
                 deltaSlopes[c] += err
             }
-            
-
             const err = totalPredicted - labels[a]
-             
             deltaIntercept += (2 / n) * err
         }
         return { deltaIntercept, deltaSlopes }
     }
 
-    fitMultiple({ iterations= 1000, learningRate = 0.001, optimizeStartingWeights = false, logging = false }: FitSimpleParams): MultiModel {
+    /**
+     * 
+     * @param FitParams.iterations Amount of iterations. (default 1000)
+     * @param FitParams.learningRate Learning rate of iterations. (default 0.0001)
+     * @param FitParams.logging Log some output on every {iterations / 10}th iteration. (default false)
+     * @param FitParams.optimizeStartingWeights Optimize the starting weights, only for one-variable-regression. (default false)
+     * @returns 
+     */
+    fit({ iterations = 10000, learningRate = 0.0001, logging = false, optimizeStartingWeights = false }: FitParams): Model {
         let bestSlopes = []
         let bestIntercept = 0
         let minError = NaN
-        let { labels, inputs } = this
-
-        let slopes = inputs[0].map(a => 0)
+        let { inputs, labels } = this
+        let slopes = inputs[0].map(_a => 0)
         let intercept = 0
 
+        if (optimizeStartingWeights && isSingleVariable(inputs, labels)) {
+            const { slopes: s1, intercept: i1 } = this.#calculateStartingWeights()
+            slopes = s1, intercept = i1
+        }
+        
         for (let iteration = 1; iteration <= iterations; iteration++) {
-            
-            const { deltaIntercept, deltaSlopes } = this.#updateWeightsMultiple({ slopes, intercept })
+            const { deltaIntercept, deltaSlopes } = this.#updateWeights({ slopes, intercept })
             intercept -= learningRate * deltaIntercept
             for (const idx in deltaSlopes) {
                 slopes[idx] -= learningRate * deltaSlopes[idx]
             }
-            
-            const iterationError = this.#meanSquaredErrorMultiple({ slopes, intercept }) 
+            const iterationError = this.#meanSquaredError({ slopes, intercept }) 
             if (logging && (iteration % (iterations / 10) === 0)) console.info(`iteration ${iteration}, error ${iterationError}, slopes ${slopes}, intercept ${intercept}`)
-
             if (iteration === 1 || iterationError < minError) {
                 bestSlopes = slopes
                 bestIntercept = intercept
@@ -152,46 +127,13 @@ export class LinearRegression {
 
     /**
      * 
-     * @param fitSimple.iterations? Amount of iterations. (default 1000)
-     * @param fitSimple.learningRate? Learning rate. (default 0.01)
-     * @param fitSimple.optimizeStartingWeights? Optimize the starting weights, also slope and intercept. If you are using this, you might have to give very small learningRate. (default 0 and 0)
-     * @description Give iterations and learning rate as a parameter, get the intercept and the slope back. Single-feature only.
-     * @returns {Object} { intercept: number, slope: number, error: number }
-     */
-    fitSimple({ iterations = 1000, learningRate = 0.001, optimizeStartingWeights = false, logging = false }: FitSimpleParams): SimpleModel {
-        let bestSlope = 0
-        let bestIntercept = 0
-        let minError = 0
-
-        let { intercept, slope } = optimizeStartingWeights ? this.#calculateStartingWeightsSimple() : { intercept: 0, slope: 0 }
-       
-        let errors = []
-        for (let iteration = 1; iteration <= iterations; iteration++) {
-            const { deltaIntercept, deltaSlope } = this.#updateWeights({ slope, intercept })
-
-            const iterationError = this.#meanSquaredErrorSimple({ slope, intercept }) // Calculate the total MSE.
-            slope -= learningRate * deltaSlope
-            intercept -= learningRate * deltaIntercept
-            if (logging && (iteration % (iterations / 10) === 0)) console.info(`iteration ${iteration}, error ${iterationError}, slope ${slope}, intercept ${intercept}`)
-            if (iteration === 1 || iterationError < minError) {
-                minError = iterationError
-                bestIntercept = intercept
-                bestSlope = slope
-            }
-        }
-        
-        return { intercept: bestIntercept, slope: bestSlope, error: minError }
-    }
-
-    /**
-     * 
-     * @param scores.testValues Calculate the predictions based on these inputs.
-     * @param scores.testLabels Predefined labels, used in the calculations.
+     * @param ScoreParams.testValues Calculate the predictions based on these inputs.
+     * @param ScoreParams.testLabels Predefined labels, used in the calculations.
      * @description Calculate mean squared error and mean absolute error for the model. 
-     * @returns {Object} { mse: number, mae: numer }
+     * @returns {Object} { mse: number, mae: numer } Mean squared error and mean absolute error of the model.
      */
     scores({ testValues, testLabels }: ScoreParams): Scores {
-        const predictedValues = this.simpleModelPredict({ inputs: testValues })
+        const predictedValues = this.predict({ inputs: testValues })
         const n = testValues.length
         let mse = 0
         let mae = 0
@@ -207,25 +149,25 @@ export class LinearRegression {
             mae += maeErr
             i++
         }
-
-        return { mse: (1 / n) * mse, mae: (1 / n) * mae }
+        mse *= (1 / n)
+        mae *= (1 / n)
+        return { mse, mae }
     }
 
     /**
      * 
-     * @param optimizedHyperparams.iterations The list of iterations/epochs to test.
-     * @param optimizedHyperparams.learningRate The list of learning rates to test.
+     * @param OptimizedValuesParams.iterations The list of iterations/epochs to test.
+     * @param OptimizedValuesParams.learningRate The list of learning rates to test.
      * @returns {Object} { iteration: number, learningRate: number } Best possible epoch and learning rate combination.
      */
     optimizeHyperparams({ iterations, learningRates }: OptimizedValuesParams): OptimizedValues  {
         let returned = { iteration: 0, learningRate: 0 }
         let bestError = NaN
-        const isSingle = isSingleVariable(this.inputs, this.labels)
-        for (const it of iterations) {
+        for (const iteration of iterations) {
             for (const learningRate of learningRates) {
-                const { error } = isSingle ? this.fitSimple({ learningRate, iterations: it }) : this.fitMultiple({ learningRate, iterations: it })
+                const { error } = this.fit({ learningRate, iterations: iteration })
                 if (isNaN(bestError) || error < bestError) {
-                    returned = { iteration: it, learningRate }
+                    returned = { iteration, learningRate }
                 }
             }
         }
@@ -234,24 +176,28 @@ export class LinearRegression {
 
     /**
      * 
-     * @param simpleModelSet.slope Slope.
-     * @param simpleModelSet.intercept Intercept.
+     * @param Weights.slopes Slope.
+     * @param Weights.intercept Intercept.
      * @description Set previously generated slope & intercept to the model, or custom inputs.
      */
-    simpleModelSet({ slope, intercept }: WeightsSimple): void {
-        this.slope = slope
+    setModel({ slopes, intercept }: Weights): void {
+        this.slopes = slopes
         this.intercept = intercept
     }
 
     /**
      * 
-     * @param simpleModelPredict.inputs Predict labels for these inputs.
+     * @param Inputs.inputs Predict labels for these inputs.
      * @description Give inputs, and return predicted labels as a generator.
      * @returns labels Labels as a generator.
      */
-    * simpleModelPredict({ inputs }: { inputs: number[]}): Generator<number> {
+    * predict({ inputs }: { inputs: number[][] }): Generator<number> {
         for (const v of inputs) {
-            yield this.slope * v + this.intercept
+            let sum = this.intercept
+            for (const s in this.slopes) {
+               sum += this.slopes[s] * v[s] 
+            }
+            yield sum
         }
     }
 }
