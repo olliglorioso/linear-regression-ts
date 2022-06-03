@@ -1,29 +1,45 @@
 import { LinearRegression, trainAndTestSets } from "../index"
+import fs from "fs"
 
 describe("Test simple linear regression", () => {
     let x = []
     let y = []
-    for (let i = 0; i < 100; i++) x.push(i)
-    for (const i of x) y.push(2 * parseInt(i) + 2)
+    for (let i = 0; i < 200; i++) x.push(i)
+    for (const i of x) y.push(7.76 * parseInt(i) + 2.22)
     const { trainValues, trainLabels, testLabels, testValues } = trainAndTestSets(x, y, 70)
     const lr = new LinearRegression({ inputs: trainValues, labels: trainLabels })
 
     it ("Should return correct slope and intercept.", () => {
         
-        const { slope, intercept } = lr.fitSimple(300000, 0.00001)
-        
-        expect(slope).toBeCloseTo(2, 0)
-        expect(intercept).toBeCloseTo(2, 0)
+        const { slope, intercept, error } = lr.fitSimple({ logging: true, optimizeStartingWeights: false, iterations: 500000, learningRate: 0.00001 })
+        expect(slope).toBeCloseTo(7.76, 0)
+        expect(intercept).toBeCloseTo(2.22, 0)
     })
     it ("Test if the best iteration & learning rate are correct.", () => {
-        const { iteration, learningRate } = lr.optimizedValues([10, 20, 100, 1000, 6000], [1, 0.1, 0.001, 0.0001])
+        const { iteration, learningRate } = lr.optimizeHyperparams({ iterations: [10, 20, 100, 1000, 6000], learningRates: [1, 0.1, 0.001, 0.0001]})
         expect(iteration).toBe(6000)
         expect(learningRate).toBe(0.0001)
     })
     it ("Test that the predicted values are realistic.", () => {
-        const predicted = lr.simpleModelPredict(testValues)
+        const predicted = lr.simpleModelPredict({ inputs: testValues })
         for (const i in predicted) {
             expect(predicted[i]).toBeCloseTo(testLabels[i])
         }
     })
 })
+
+// describe("Test multi-variable linear regression", () => {
+//     // biking, smoking, heart-disease
+//     const data = fs.readFileSync(__dirname + "/heartdata.csv", "utf8")
+//     const lines = data.split("\n")
+//     let dataSet = []
+//     let labels = []
+//     for (const line of lines) {
+//         const values = line.trim().split(",")
+//         dataSet.push([parseFloat(values[0]), parseFloat(values[1])])
+//         labels.push(parseFloat(values[2]))
+//     }
+//     const lr = new LinearRegression({ inputs: dataSet, labels })
+//     const { intercept, slopes, error } = lr.fitMultiple({ learningRate: 0.000001, iterations: 1000000, logging: true })
+//     console.info(intercept, slopes, error)
+// })

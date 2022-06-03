@@ -4,10 +4,52 @@ export interface SimpleModel {
     error: number
 }
 
+export interface MultiModel {
+    intercept: number,
+    slopes: number[],
+    error: number
+}
+
+export interface WeightsSimple {
+    intercept: number,
+    slope: number
+}
+
 export interface ClassProps {
-    inputs?: number[],
+    inputs: any
     labels: number[],
-    multiInputs?: number[][]
+}
+
+export interface WeightsToUpdateMultiple {
+    deltaIntercept: number,
+    deltaSlopes: number[],
+}
+
+export interface WeightsMultiple {
+    intercept: number,
+    slopes: number[],
+}
+
+export interface WeightsToUpdate {
+    deltaIntercept: number,
+    deltaSlope: number
+}
+
+export interface FitSimpleParams {
+    iterations?: number,
+    learningRate?: number,
+    optimizeStartingWeights?: boolean,
+    logging?: boolean
+}
+
+export interface ScoreParams {
+    testValues: number[],
+    testLabels: number[]
+}
+
+export interface OptimizedValuesParams {
+    iterations: number[],
+    learningRates: number[]
 }
 
 export interface OptimizedValues {
