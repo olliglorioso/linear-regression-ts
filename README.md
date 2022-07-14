@@ -23,10 +23,10 @@ npm install linear-regression-ts
 ```typescript
 import { LinearRegression, trainAndTestSets } from 'linear-regression-ts'
 
-// Create train and test sets.
-const x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+// Create train and test sets. One column for one feature.
+const x = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [9, 10], [10, 11]]
 const y = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-const { trainValues, testValues, trainLabels, testLabels } = trainAndTestSets(x, y)  
+const { trainValues, testValues, trainLabels, testLabels } = trainAndTestSets({ x, y, ratio: 0.7 })  
 
 // Initialize the untrained model.
 const lr = new LinearRegression({ inputs: trainValues, labels: trainLabels }) 
@@ -44,7 +44,7 @@ const { mse, mae } = lr.scores({ testValues, testLabels })
 // Optimize the hyperparameters.
 const iterationAlternatives = [0, 1, 2, 5, 10, 20, 100, 1000, 5000, 10000]
 const learningRateAlternatives = [0.00001, 0.0001, 0.001, 0.01, 0.1, 1]
-const { iteration, learningRate } = lr.optimizedValues({ iterations, learningRates }) 
+const { iteration, learningRate } = lr.optimizedValues({ iterations: iterationAlternatives, learningRates: learningRateAlternatives }) 
 
 // Predict unknown values.
 const iDontKnowTheLabels = [23, 43, 98, 82, 8, 76, 1, 2, 3, 4] 
