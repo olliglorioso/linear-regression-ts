@@ -1,11 +1,10 @@
 import { LinearRegression, trainAndTestSets } from "../index"
-import fs from "fs"
 
 describe("Test simple linear regression", () => {
-    let x = []
-    let y = []
+    let x: number[][] = []
+    let y: number[] = []
     for (let i = 0; i < 200; i++) x.push([ i ])
-    for (const i of x) y.push(7.76 * parseInt(i) + 2.22)
+    for (const i of x) y.push(7.76 * i[0] + 2.22)
     const { trainValues, trainLabels, testLabels, testValues } = trainAndTestSets({ inputs: x, labels: y, ratio: 70 })
     const lr = new LinearRegression({ inputs: trainValues, labels: trainLabels })
 
@@ -28,20 +27,28 @@ describe("Test simple linear regression", () => {
     })
 })
 
-// describe("Test multi-variable linear regression", () => {
-//     // biking, smoking, heart-disease
-//     fetch("https://raw.githubusercontent.com/olliglorioso/datasets/main/heartdata.csv").then(res => {
-//         const lines = (res as unknown as string).split("\n")
-//         let dataSet = []
-//         let labels = []
-//         for (const line of lines) {
-//             const values = line.trim().split(",")
-//             dataSet.push([parseFloat(values[0]), parseFloat(values[1])])
-//             labels.push(parseFloat(values[2]))
-//         }
-//         const lr = new LinearRegression({ inputs: dataSet, labels })
-//         const { intercept, slopes, error } = lr.fitMultiple({ learningRate: 0.000001, iterations: 1000000, logging: true })
-//         console.info(intercept, slopes, error)
-//     })
-    
-// })
+// Works only with Node.js >17.5.0. Test instead of describe, since it supports asynchronous tests.
+test("Test multi-variable linear regression", async () => {
+    // biking, smoking, heart-disease
+    const url = "https://raw.githubusercontent.com/olliglorioso/datasets/main/heartdata.csv"
+    const res = await fetch(url)
+    const data = await res.text()
+    const lines = (data as unknown as string).split("\n")
+    let dataSet: number[][] = []
+    let labels: number[] = []
+    for (const line of lines) {
+        const values = line.trim().split(",")
+        if (values.length === 3) {
+            const biking = parseFloat(values[0])
+            const smoking = parseFloat(values[1])
+            const heart_disease = parseFloat(values[2])
+            dataSet.push([biking, smoking])
+            labels.push(heart_disease)
+        }
+        
+    }
+    const lr = new LinearRegression({ inputs: dataSet, labels })
+    const { intercept, slopes, error } = lr.fit({ learningRate: 0.0001, iterations: 15000, logging: true })
+    console.info(intercept, slopes, error)
+    expect(error).toBeLessThan(10)
+})
