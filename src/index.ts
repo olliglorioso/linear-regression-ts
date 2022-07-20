@@ -1,4 +1,4 @@
-import { ClassProps, FitParams, Model, OptimizedValues, OptimizedValuesParams, ScoreParams, 
+import { ClassProps, FitParams, Model, OptimizedHyperparams, OptimizedHyperparamsParams, ScoreParams, 
     Scores, TrainAndTestReturn, TrainAndTestParams, Weights, WeightsToUpdate } from "./types"
 import { shuffleList, splitToChunks, isSingleVariable, splitToChunksLabels } from "./utils"
 
@@ -156,11 +156,11 @@ export class LinearRegression {
 
     /**
      * 
-     * @param OptimizedValuesParams.iterations The list of iterations/epochs to test.
-     * @param OptimizedValuesParams.learningRate The list of learning rates to test.
+     * @param OptimizedHyperparamsParams.iterations The list of iterations/epochs to test.
+     * @param OptimizedHyperparamsParams.learningRate The list of learning rates to test.
      * @returns {Object} { iteration: number, learningRate: number } Best possible epoch and learning rate combination.
      */
-    optimizeHyperparams({ iterations, learningRates }: OptimizedValuesParams): OptimizedValues  {
+    optimizeHyperparams({ iterations, learningRates }: OptimizedHyperparamsParams): OptimizedHyperparams  {
         let returned = { iteration: 0, learningRate: 0 }
         let bestError = NaN
         for (const iteration of iterations) {

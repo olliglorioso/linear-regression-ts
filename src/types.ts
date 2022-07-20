@@ -44,12 +44,12 @@ export interface ScoreParams {
     testLabels: number[]
 }
 
-export interface OptimizedValuesParams {
+export interface OptimizedHyperparamsParams {
     iterations: number[],
     learningRates: number[]
 }
 
-export interface OptimizedValues {
+export interface OptimizedHyperparams {
     iteration: number,
     learningRate: number
 }

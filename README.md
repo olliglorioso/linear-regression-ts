@@ -44,7 +44,7 @@ const { mse, mae } = lr.scores({ testValues, testLabels })
 // Optimize the hyperparameters.
 const iterationAlternatives = [0, 1, 2, 5, 10, 20, 100, 1000, 5000, 10000]
 const learningRateAlternatives = [0.00001, 0.0001, 0.001, 0.01, 0.1, 1]
-const { iteration, learningRate } = lr.optimizedValues({ iterations: iterationAlternatives, learningRates: learningRateAlternatives }) 
+const { iteration, learningRate } = lr.optimizeHyperparams({ iterations: iterationAlternatives, learningRates: learningRateAlternatives }) 
 
 // Predict unknown values.
 const iDontKnowTheLabels = [23, 43, 98, 82, 8, 76, 1, 2, 3, 4] 

@@ -4,83 +4,77 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _LinearRegression_instances, _LinearRegression_coefficientErrors;
+var _LinearRegression_instances, _LinearRegression_calculateStartingWeights, _LinearRegression_meanSquaredError, _LinearRegression_updateWeights;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LinearRegression = exports.trainAndTestSets = void 0;
 const utils_1 = require("./utils");
 /**
-* @param input The input values.
-* @param labels The output values.
-* @param ratio How many % of the data is for training.
+* @param TrainAndTestParams.input The input values.
+* @param TrainAndTestParams.labels The output values.
+* @param TrainAndTestParams.ratio How many % of the data is for training.
 * @description Returns randomly selected train- & test-inputs for use.
 * @returns trainValues, testValues, trainLabels, testLabels
 */
-const trainAndTestSets = (inputs, labels, ratio) => {
+const trainAndTestSets = ({ inputs, labels, ratio }) => {
     const { shuffledValues, shuffledLabels } = (0, utils_1.shuffleList)(inputs, labels);
     const { train: trainValues, test: testValues } = (0, utils_1.splitToChunks)(ratio, shuffledValues);
-    const { train: trainLabels, test: testLabels } = (0, utils_1.splitToChunks)(ratio, shuffledLabels);
+    const { train: trainLabels, test: testLabels } = (0, utils_1.splitToChunksLabels)(ratio, shuffledLabels);
     return { trainValues, testValues, trainLabels, testLabels };
 };
 exports.trainAndTestSets = trainAndTestSets;
 class LinearRegression {
-    constructor(inputs, labels) {
+    constructor({ inputs, labels }) {
         _LinearRegression_instances.add(this);
-        (0, utils_1.checkValues)(inputs, labels);
+        this.intercept = 0;
+        this.slopes = inputs[0].map(_a => 0);
         this.inputs = inputs;
         this.labels = labels;
-        this.intercept = Math.random() * 2;
-        this.slope = Math.random() * 2;
     }
     /**
      *
-     * @param iterations Amount of iterations. (default 1000)
-     * @param learningRate Learning rate. (default 0.01)
-     * @param maxError If a single cost of intercept/slope is over this threshold, ignore the corresponding value from calculations. (default false)
-     * @param setParams Automatically set the intercept and slope of the model. (default true)
-     * @description Give iterations and learning rate as a parameter, get the intercept and the slope back. Single-feature only.
-     * @returns {Object} { intercept: number, slope: number, error: number }
+     * @param FitParams.iterations Amount of iterations. (default 1000)
+     * @param FitParams.learningRate Learning rate of iterations. (default 0.0001)
+     * @param FitParams.logging Log some output on every {iterations / 10}th iteration. (default false)
+     * @param FitParams.optimizeStartingWeights Optimize the starting weights, only for one-variable-regression. (default false)
+     * @returns
      */
-    fitSimple(iterations = 1000, learningRate = 0.001, maxError, setParams = true) {
-        let bestSlope = 0;
+    fit({ iterations = 10000, learningRate = 0.0001, logging = false, optimizeStartingWeights = false }) {
+        let bestSlopes = [];
         let bestIntercept = 0;
-        let slope = 0;
-        let intercept = 0;
         let minError = NaN;
-        let errors = [];
-        const { inputs, labels } = this;
-        for (let iteration = 1; iteration <= iterations; iteration++) {
-            let error = 0;
-            for (const a in inputs) {
-                const predicted = slope * inputs[a] + intercept;
-                const iterationError = Math.pow((labels[a] - predicted), 2); // MSE
-                error += iterationError;
-                const { errorIntercept, errorSlope } = __classPrivateFieldGet(this, _LinearRegression_instances, "m", _LinearRegression_coefficientErrors).call(this, slope, intercept);
-                if (maxError && (errorIntercept > maxError || errorSlope > maxError))
-                    continue;
-                slope = slope - learningRate * errorSlope;
-                intercept = intercept - learningRate * errorIntercept;
-            }
-            if (iteration === 1 || error < minError) {
-                minError = error;
-                bestSlope = slope;
-                bestIntercept = intercept;
-            }
-            errors.push(error);
+        let { inputs, labels } = this;
+        let slopes = inputs[0].map(_a => 0);
+        let intercept = 0;
+        if (optimizeStartingWeights && (0, utils_1.isSingleVariable)(inputs, labels)) {
+            const { slopes: s1, intercept: i1 } = __classPrivateFieldGet(this, _LinearRegression_instances, "m", _LinearRegression_calculateStartingWeights).call(this);
+            slopes = s1, intercept = i1;
         }
-        if (setParams)
-            this.intercept = bestIntercept, this.slope = bestSlope;
-        return { intercept: bestIntercept, slope: bestSlope, error: minError };
+        for (let iteration = 1; iteration <= iterations; iteration++) {
+            const { deltaIntercept, deltaSlopes } = __classPrivateFieldGet(this, _LinearRegression_instances, "m", _LinearRegression_updateWeights).call(this, { slopes, intercept });
+            intercept -= learningRate * deltaIntercept;
+            for (const idx in deltaSlopes) {
+                slopes[idx] -= learningRate * deltaSlopes[idx];
+            }
+            const iterationError = __classPrivateFieldGet(this, _LinearRegression_instances, "m", _LinearRegression_meanSquaredError).call(this, { slopes, intercept });
+            if (logging && (iteration % (iterations / 10) === 0))
+                console.info(`iteration ${iteration}, error ${iterationError}, slopes ${slopes}, intercept ${intercept}`);
+            if (iteration === 1 || iterationError < minError) {
+                bestSlopes = slopes;
+                bestIntercept = intercept;
+                minError = iterationError;
+            }
+        }
+        return { intercept: bestIntercept, slopes: bestSlopes, error: minError };
     }
     /**
      *
-     * @param testValues Calculate the predictions based on these inputs.
-     * @param testLabels Predefined labels, used in the calculations.
+     * @param ScoreParams.testValues Calculate the predictions based on these inputs.
+     * @param ScoreParams.testLabels Predefined labels, used in the calculations.
      * @description Calculate mean squared error and mean absolute error for the model.
-     * @returns {Object} { mse: number, mae: numer }
+     * @returns {Object} { mse: number, mae: numer } Mean squared error and mean absolute error of the model.
      */
-    scores(testValues, testLabels) {
-        const predictedValues = this.simpleModelPredict(testValues);
-        const { intercept, slope } = this;
+    scores({ testValues, testLabels }) {
+        const predictedValues = this.predict({ inputs: testValues });
         const n = testValues.length;
         let mse = 0;
         let mae = 0;
@@ -93,23 +87,24 @@ class LinearRegression {
             mae += maeErr;
             i++;
         }
-        return { mse: (1 / n) * mse, mae: (1 / n) * mae };
+        mse *= (1 / n);
+        mae *= (1 / n);
+        return { mse, mae };
     }
     /**
      *
-     * @param iterations List of iterations to test.
-     * @param learningRates List of learning rates to test.
-     * @description Automatically optimizes inputs for iterations and learning rates. Utilizes single-variable model.
-     * @returns {Object} { bestIteration: number, bestLearningRate: number }
+     * @param OptimizedHyperparamsParams.iterations The list of iterations/epochs to test.
+     * @param OptimizedHyperparamsParams.learningRate The list of learning rates to test.
+     * @returns {Object} { iteration: number, learningRate: number } Best possible epoch and learning rate combination.
      */
-    optimizedValues(iterations, learningRates) {
+    optimizeHyperparams({ iterations, learningRates }) {
         let returned = { iteration: 0, learningRate: 0 };
         let bestError = NaN;
-        for (const it of iterations) {
-            for (const lr of learningRates) {
-                const { error } = this.fitSimple(it, lr);
+        for (const iteration of iterations) {
+            for (const learningRate of learningRates) {
+                const { error } = this.fit({ learningRate, iterations: iteration });
                 if (isNaN(bestError) || error < bestError) {
-                    returned = { iteration: it, learningRate: lr };
+                    returned = { iteration, learningRate };
                 }
             }
         }
@@ -117,39 +112,80 @@ class LinearRegression {
     }
     /**
      *
-     * @param slope Slope.
-     * @param intercept Intercept.
+     * @param Weights.slopes Slope.
+     * @param Weights.intercept Intercept.
      * @description Set previously generated slope & intercept to the model, or custom inputs.
      */
-    simpleModelSet(slope, intercept) {
-        this.slope = slope;
+    setModel({ slopes, intercept }) {
+        this.slopes = slopes;
         this.intercept = intercept;
     }
     /**
      *
-     * @param inputs Predict labels for these inputs.
+     * @param Inputs.inputs Predict labels for these inputs.
      * @description Give inputs, and return predicted labels as a generator.
      * @returns labels Labels as a generator.
      */
-    *simpleModelPredict(inputs) {
+    *predict({ inputs }) {
         for (const v of inputs) {
-            yield this.slope * v + this.intercept;
+            let sum = this.intercept;
+            for (const s in this.slopes) {
+                sum += this.slopes[s] * v[s];
+            }
+            yield sum;
         }
     }
 }
 exports.LinearRegression = LinearRegression;
-_LinearRegression_instances = new WeakSet(), _LinearRegression_coefficientErrors = function _LinearRegression_coefficientErrors(slope, intercept) {
+_LinearRegression_instances = new WeakSet(), _LinearRegression_calculateStartingWeights = function _LinearRegression_calculateStartingWeights() {
+    const { inputs, labels } = this;
+    let xy = 1;
+    let x = 0;
+    let y = 0;
+    let x2 = 0;
+    let y2 = 0;
+    const n = inputs.length;
+    for (let i = 0; i < n; i++) {
+        x += inputs[i];
+        y += labels[i];
+        x2 += Math.pow(inputs[i], 2);
+        y2 += Math.pow(labels[i], 2);
+        xy += inputs[i] * labels[i];
+    }
+    const slopes = [(n * xy - x * y) / (n * x2 - Math.pow(x, 2))];
+    const intercept = (y * x2 - x * xy) / (n * x2 - Math.pow(x, 2));
+    return { intercept, slopes };
+}, _LinearRegression_meanSquaredError = function _LinearRegression_meanSquaredError({ slopes, intercept }) {
+    const { inputs, labels } = this;
+    const n = labels.length;
+    let error = 0;
+    for (const a in inputs) {
+        let predicted = 0;
+        for (const b in inputs[a]) {
+            predicted += slopes[b] * inputs[a][b] + intercept;
+        }
+        error += Math.pow((labels[a] - predicted), 2);
+    }
+    return (1 / (2 * n)) * error;
+}, _LinearRegression_updateWeights = function _LinearRegression_updateWeights({ slopes, intercept }) {
     const { inputs, labels } = this;
     const n = inputs.length;
-    let errorIntercept = 0;
-    let errorSlope = 0;
-    for (const b in inputs) { // Calculate the gradient of cost function with respect to slope & intercept.
-        const singleError = labels[b] - (slope * inputs[b] + intercept);
-        const pdIntercept = (-2) / n * singleError;
-        const pdSlope = (-2) / n * (inputs[b]) * singleError;
-        errorIntercept = errorIntercept + pdIntercept;
-        errorSlope = errorSlope + pdSlope;
+    let deltaIntercept = 0;
+    let deltaSlopes = inputs[0].map(a => 0);
+    for (const a in inputs) {
+        let totalPredicted = intercept;
+        for (const b in inputs[a]) {
+            const x = inputs[a][b];
+            const predicted = slopes[b] * x;
+            totalPredicted += predicted;
+        }
+        for (const c in inputs[a]) {
+            const err = (totalPredicted - labels[a]) * inputs[a][c] * (2 / n);
+            deltaSlopes[c] += err;
+        }
+        const err = totalPredicted - labels[a];
+        deltaIntercept += (2 / n) * err;
     }
-    return { errorIntercept, errorSlope };
+    return { deltaIntercept, deltaSlopes };
 };
 //# sourceMappingURL=index.js.map
