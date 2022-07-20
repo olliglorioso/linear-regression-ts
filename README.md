@@ -14,7 +14,10 @@ using Tensorflow.js and getting all kind of *useless* and *heavy* functions and 
 - Set custom intercept and slope, and use them to make the predictions.
 - JSDoc included to help make the use of this library as downright as possible.
 
-### Quick start
+## Releases / changelog
+[https://github.com/olliglorioso/linear-regression-ts/releases](https://github.com/olliglorioso/linear-regression-ts/releases)
+
+## Quick start
 
 ```bash
 npm install linear-regression-ts
@@ -54,3 +57,5 @@ const predictions = lr.predict({ inputs: iDontKnowTheLabels })
 lr.setModel(2, 2)
 
 ```
+
+
