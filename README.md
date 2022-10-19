@@ -29,6 +29,8 @@ import { LinearRegression, trainAndTestSets } from "linear-regression-ts"
 // Create train and test sets. One column for one feature.
 const x = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [9, 10], [10, 11]]
 const y = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+// Inputs: [[feature1, feature2, ...], [feature1, feature2, ...], ...]
+// Labels: [label_for_measurement1, label_for_measurement2, ...] 
 const { trainValues, testValues, trainLabels, testLabels } = trainAndTestSets({ inputs: x, labels: y, ratio: 50 })  
 
 // Initialize the untrained model.
