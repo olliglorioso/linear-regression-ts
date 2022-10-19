@@ -3,7 +3,7 @@ import { ClassProps, FitParams, Model, OptimizedHyperparams, OptimizedHyperparam
 import { shuffleList, splitToChunks, isSingleVariable, splitToChunksLabels } from "./utils"
 
 /**
-* @param TrainAndTestParams.input The input values.
+* @param TrainAndTestParams.inputs The input values.
 * @param TrainAndTestParams.labels The output values.
 * @param TrainAndTestParams.ratio How many % of the data is for training.
 * @description Returns randomly selected train- & test-inputs for use.
